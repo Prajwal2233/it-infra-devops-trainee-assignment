@@ -30,7 +30,7 @@ stack, with automated health checks, backups, and basic metrics monitoring.
 ├── .env.example                   # copy to .env, fill in DB credentials
 ├── .gitignore
 ├── docker-compose.yml              # nginx + app + db
-├── docker-compose.monitoring.yml   # optional: prometheus + node-exporter
+├── docker-compose.monitoring.yml   # prometheus + node-exporter
 ├── nginx/default.conf              # reverse proxy config
 ├── app/                             # Flask backend
 │   ├── Dockerfile
