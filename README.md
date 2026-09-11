@@ -56,24 +56,76 @@ stack, with automated health checks, backups, and basic metrics monitoring.
 
 ## 4. Task 1 — Server Provisioning & Hardening
 
-1. Copy `scripts/setup_server.sh` to the server and run it as root:
-   ```bash
-   sudo ./setup_server.sh
-   ```
-   It will: update packages, create the `trainee` user, install your SSH
-   public key, set `Port 2222`, `PermitRootLogin no`,
-   `PasswordAuthentication no`, and configure UFW to allow only
-   `2222/tcp`, `80/tcp`, `443/tcp`.
+## Task 1 — Server Provisioning & Hardening
 
-2. **Before closing your current session**, open a new terminal and confirm:
-   ```bash
-   ssh -p 2222 trainee@<server-ip>
-   ```
-3. Verify the firewall:
-   ```bash
-   sudo ufw status verbose
-   ```
-   📸 *Screenshot 1: output of this command.*
+Goal: a proper admin user instead of root, SSH locked to key-only auth on a non-default port, and a firewall that only allows what's needed.
+
+Did this by hand first to actually understand each step, then scripted it in [`scripts/setup_server.sh`](./scripts/setup_server.sh) for repeatability.
+
+**Environment:** Ubuntu Server 24.04 LTS, VMware, CLI-only.
+
+**1. Update the system**
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+**2. Create `trainee` and add to sudo**
+```bash
+sudo adduser trainee
+sudo usermod -aG sudo trainee
+groups trainee   # confirms 'sudo' group
+```
+
+**3. Generate an SSH key pair (local machine)**
+```powershell
+ssh-keygen -t ed25519 -C "trainee"
+Get-Content ~/.ssh/id_ed25519.pub
+```
+
+**4. Install the public key on the server**
+```bash
+sudo mkdir -p /home/trainee/.ssh
+sudo nano /home/trainee/.ssh/authorized_keys
+sudo chmod 700 /home/trainee/.ssh
+sudo chmod 600 /home/trainee/.ssh/authorized_keys
+sudo chown -R trainee:trainee /home/trainee/.ssh
+```
+
+**5. Harden sshd_config**
+```bash
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+sudo nano /etc/ssh/sshd_config
+```
+```
+Port 2222
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+```
+```bash
+sudo sshd -t                  # validate before reload
+sudo systemctl restart ssh    # unit is 'ssh', not 'sshd', on this build
+```
+
+**6. Verify before disconnecting**
+```powershell
+ssh -i ~/.ssh/id_ed25519 -p 2222 trainee@192.168.52.185
+```
+Logged in with no password prompt — confirms key auth, new port, and `PasswordAuthentication no` all working, before closing the original session.
+
+**7. Configure UFW**
+```bash
+sudo apt install -y ufw
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 2222/tcp comment 'SSH custom port'
+sudo ufw allow 80/tcp comment 'HTTP'
+sudo ufw allow 443/tcp comment 'HTTPS'
+sudo ufw enable
+sudo ufw status verbose
+```
+<img width="1101" height="332" alt="Screenshot 2026-09-10 211225" src="https://github.com/user-attachments/assets/a9d81fdb-0a08-4ffe-855c-ace91c9e5fbf" />
+
 
 ## 5. Task 2 — Docker Compose Stack
 
@@ -81,7 +133,7 @@ stack, with automated health checks, backups, and basic metrics monitoring.
    ```bash
    git clone <your-repo-url>.git
    cd <repo>
-   cp .env.example .env && nano .env   # set a real POSTGRES_PASSWORD
+   cp .env.example .env && nano .env   
    ```
 2. Build and start the stack:
    ```bash
@@ -91,15 +143,16 @@ stack, with automated health checks, backups, and basic metrics monitoring.
    ```bash
    docker ps
    ```
-   📸 *Screenshot 2: output of `docker ps` showing nginx, app, db all `Up`.*
+<img width="1496" height="134" alt="Screenshot 2026-09-11 120444" src="https://github.com/user-attachments/assets/cb6b0b48-9d12-4565-92c9-9bb9de6bf29a" />
+
 
 4. Verify the reverse proxy routes correctly:
    ```bash
    curl http://localhost/
    curl http://localhost/db-check
    ```
-   Or open `http://<server-ip>/` in a browser.
-   📸 *Screenshot 3: browser output of the app response.*
+   <img width="1005" height="112" alt="image" src="https://github.com/user-attachments/assets/608ea3b8-b43d-431c-aae8-30e27fe900f9" />
+
 
 ## 6. Task 3 — Health Check Automation
 
@@ -114,7 +167,8 @@ stack, with automated health checks, backups, and basic metrics monitoring.
    sudo /opt/scripts/infra_health_check.sh
    cat /var/log/infra_health.log
    ```
-   📸 *Screenshot 4: terminal output of the script run + log contents.*
+   <img width="1243" height="233" alt="Screenshot 2026-09-11 121232" src="https://github.com/user-attachments/assets/f5d3fe48-638e-4ed8-8ad1-2e20d2aaf8a2" />
+
 
 3. Install the cron schedule (runs every 15 minutes):
    ```bash
@@ -132,37 +186,40 @@ stack, with automated health checks, backups, and basic metrics monitoring.
    sudo /opt/scripts/db_backup.sh
    ls -lh /var/backups/db/
    ```
-   Produces: `/var/backups/db/db_backup_YYYYMMDD.sql.gz`
    Old backups older than 7 days are pruned automatically (retention policy).
 
 2. **Restore procedure** (documented, tested):
-   ```bash
-   # 1. Decompress
-   gunzip -k /var/backups/db/db_backup_YYYYMMDD.sql.gz
 
-   # 2. Restore into the running db container
-   docker exec -i db psql -U appuser -d appdb < /var/backups/db/db_backup_YYYYMMDD.sql
-   ```
-   To restore into a *fresh* database instead:
-   ```bash
-   docker exec -i db psql -U appuser -d postgres -c "DROP DATABASE IF EXISTS appdb;"
-   docker exec -i db psql -U appuser -d postgres -c "CREATE DATABASE appdb;"
-   docker exec -i db psql -U appuser -d appdb < db_backup_YYYYMMDD.sql
-   ```
+Backup produced: `db_backup_20260911.sql.gz` (format: `db_backup_YYYYMMDD.sql.gz`)
 
-3. (Optional) Schedule daily backups via cron:
-   ```bash
-   echo "0 2 * * * root /opt/scripts/db_backup.sh >> /var/log/db_backup.log 2>&1" | sudo tee /etc/cron.d/db_backup
-   ```
+```bash
+# Decompress and restore into the existing 'db' container
+gunzip -k /var/backups/db/db_backup_20260911.sql.gz
+docker exec -i db psql -U appuser -d appdb < /var/backups/db/db_backup_20260911.sql
+```
+
+To restore into a fresh database instead (e.g. volume was lost):
+```bash
+docker exec -i db psql -U appuser -d postgres -c "DROP DATABASE IF EXISTS appdb;"
+docker exec -i db psql -U appuser -d postgres -c "CREATE DATABASE appdb;"
+docker exec -i db psql -U appuser -d appdb < /var/backups/db/db_backup_20260911.sql
+```
+<img width="1180" height="216" alt="Screenshot 2026-09-11 121607" src="https://github.com/user-attachments/assets/6b07743c-c482-4cd3-96e5-3ea559cd47d2" />
+
 
 ### Basic Metrics/Monitoring
 
 ```bash
 docker compose -f docker-compose.monitoring.yml up -d
 ```
-- Node Exporter metrics: `http://<server-ip>:9100/metrics`
-- Prometheus UI: `http://<server-ip>:9090` (check **Status → Targets** to
-  confirm `node-exporter` is `UP`)
+
+Ports 9090/9100 aren't opened on UFW (keeps Task 1's firewall policy intact) — accessed via SSH tunnel instead:
+```powershell
+ssh -i ~/.ssh/id_ed25519 -p 2222 -L 9090:localhost:9090 trainee@192.168.52.185
+```
+Then `http://localhost:9090/targets` → confirm `node-exporter` shows `UP`.
+  
+<img width="1858" height="565" alt="image" src="https://github.com/user-attachments/assets/8300a025-bc41-4b80-88d0-e1a2bf05c910" />
 
 ## 8. Task 5 — Git Workflow
 
@@ -202,28 +259,5 @@ Commit message convention: `feat:`, `fix:`, `docs:`, `chore:` prefixes
 | 6 | Backup exists | `ls -lh /var/backups/db/` |
 | 7 | Monitoring target up | Prometheus UI → Status → Targets |
 
-### Screenshots (attach in this section before submitting)
 
-- [ ] `sudo ufw status verbose`
-- [ ] `docker ps`
-- [ ] Browser hitting `http://<server-ip>/`
-- [ ] `infra_health_check.sh` run + `/var/log/infra_health.log` contents
 
-## 10. Teardown
-
-```bash
-docker compose down -v          # stops containers, removes volumes
-docker compose -f docker-compose.monitoring.yml down
-sudo rm -rf /opt/scripts
-sudo rm -f /etc/cron.d/infra_health_check /etc/cron.d/db_backup
-```
-
-## 11. Evaluation Criteria Mapping
-
-| Component | Weight | Where it's addressed |
-|---|---|---|
-| System Security & Linux | 20% | `scripts/setup_server.sh` — sudo user, SSH key-only auth on port 2222, root login disabled, UFW default-deny with explicit allow rules |
-| Docker & Networking | 30% | `docker-compose.yml`, `nginx/default.conf` — 3-service stack, internal network, Nginx reverse proxy to Flask on :5000, Postgres on named volume |
-| Bash Automation & Cron | 20% | `scripts/infra_health_check.sh`, `cron/infra_health_check.cron` — CPU/RAM/disk checks, container status check, threshold-based `[WARNING]` logging, 15-min cron |
-| Backups & Recovery | 15% | `scripts/db_backup.sh` — timestamped, compressed dump, 7-day retention; restore steps documented above |
-| Documentation & Git | 15% | This README (runbook) + feature-branch workflow described in Section 8 |
