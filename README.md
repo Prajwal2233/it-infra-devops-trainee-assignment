@@ -129,21 +129,25 @@ sudo ufw status verbose
 
 ## 5. Task 2 — Docker Compose Stack
 
-1. On the server, clone this repo and configure secrets:
-   ```bash
-   git clone <your-repo-url>.git
-   cd <repo>
-   cp .env.example .env && nano .env   
-   ```
-2. Build and start the stack:
-   ```bash
-   docker compose up -d --build
-   ```
-3. Verify all three containers are healthy:
-   ```bash
-   docker ps
-   ```
-<img width="1496" height="134" alt="Screenshot 2026-09-11 120444" src="https://github.com/user-attachments/assets/cb6b0b48-9d12-4565-92c9-9bb9de6bf29a" />
+All of this was built and tested directly on the VM, inside `~/devops-trainee-assignment` 
+
+**1. Set up secrets**
+```bash
+cd ~/devops-trainee-assignment
+cp .env.example .env
+nano .env   # set a real POSTGRES_PASSWORD
+```
+
+**2. Build and start the stack**
+```bash
+docker compose up -d --build
+```
+
+**3. Confirm all three containers are healthy**
+```bash
+docker ps
+```
+  <img width="1496" height="134" alt="Screenshot 2026-09-11 120444" src="https://github.com/user-attachments/assets/cb6b0b48-9d12-4565-92c9-9bb9de6bf29a" />
 
 
 4. Verify the reverse proxy routes correctly:
