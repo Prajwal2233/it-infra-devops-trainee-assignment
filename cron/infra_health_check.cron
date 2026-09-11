@@ -1,0 +1,6 @@
+# Runs infra_health_check.sh every 15 minutes as root.
+# Install with: sudo cp cron/infra_health_check.cron /etc/cron.d/infra_health_check
+#               sudo chmod 644 /etc/cron.d/infra_health_check
+#
+# Alternative: add the line below (without the leading 'root') via `sudo crontab -e`
+*/15 * * * * root /opt/scripts/infra_health_check.sh >> /var/log/infra_health_cron.log 2>&1
