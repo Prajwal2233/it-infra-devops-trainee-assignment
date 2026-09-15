@@ -51,7 +51,7 @@ stack, with automated health checks, backups, and basic metrics monitoring.
 - Docker Engine + Docker Compose plugin installed on the server:
   ```bash
   curl -fsSL https://get.docker.com | sudo sh
-  sudo usermod -aG docker $USER   # log out/in to apply
+  sudo usermod -aG docker $USER   
   ```
 
 ## 4. Task 1 — Server Provisioning & Hardening
@@ -73,7 +73,7 @@ sudo apt update && sudo apt upgrade -y
 ```bash
 sudo adduser trainee
 sudo usermod -aG sudo trainee
-groups trainee   # confirms 'sudo' group
+groups trainee   
 ```
 
 **3. Generate an SSH key pair (local machine)**
@@ -103,8 +103,8 @@ PasswordAuthentication no
 PubkeyAuthentication yes
 ```
 ```bash
-sudo sshd -t                  # validate before reload
-sudo systemctl restart ssh    # unit is 'ssh', not 'sshd', on this build
+sudo sshd -t                  
+sudo systemctl restart ssh    
 ```
 
 **6. Verify before disconnecting**
@@ -135,7 +135,7 @@ All of this was built and tested directly on the VM, inside `~/devops-trainee-as
 ```bash
 cd ~/devops-trainee-assignment
 cp .env.example .env
-nano .env   # set a real POSTGRES_PASSWORD
+nano .env   
 ```
 
 **2. Build and start the stack**
@@ -237,7 +237,7 @@ git add . && git commit -m "feat: add nginx, flask app, and postgres docker-comp
 git checkout main && git merge feature/docker-setup
 
 git checkout -b feature/scripts
-# ... add scripts/, cron/ ...
+
 git add . && git commit -m "feat: add health check and db backup automation scripts"
 git checkout main && git merge feature/scripts
 
@@ -248,8 +248,6 @@ git checkout main && git merge docs/readme
 git push origin main
 ```
 
-Commit message convention: `feat:`, `fix:`, `docs:`, `chore:` prefixes
-(Conventional Commits) for a clean, readable history.
 
 ## 9. Verification Checklist
 
