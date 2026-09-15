@@ -1,9 +1,4 @@
-# Optional monitoring stack for Task 4 ("basic metrics/monitoring").
-# Run independently of the main stack:
-#   docker compose -f docker-compose.monitoring.yml up -d
-#
-# Prometheus UI  : http://<server-ip>:9090
-# Node Exporter  : http://<server-ip>:9100/metrics
+
 version: "3.9"
 
 services:
