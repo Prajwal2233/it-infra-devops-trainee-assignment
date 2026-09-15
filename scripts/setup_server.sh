@@ -1,26 +1,5 @@
 #!/bin/bash
-#############################################################################
-# setup_server.sh
-#
-# Task 1: System Provisioning & Linux Administration
-#
-# What this does:
-#   1. Updates the system
-#   2. Creates a 'trainee' user with sudo privileges
-#   3. Installs an SSH public key for 'trainee'
-#   4. Hardens sshd_config (no root login, key-only auth, port 2222)
-#   5. Configures UFW to allow only SSH(2222), HTTP(80), HTTPS(443)
-#
-# Run as root on a FRESH Ubuntu server:
-#   sudo ./setup_server.sh
-#
-# !!! IMPORTANT - AVOID LOCKOUT !!!
-# Do NOT close your current session until you have opened a SECOND
-# terminal and confirmed you can log in as:
-#   ssh -p 2222 trainee@<server-ip>
-# using the key you provide below. If you get locked out, you will
-# need console/VNC access (e.g. cloud provider's web console) to fix it.
-#############################################################################
+
 
 set -euo pipefail
 
